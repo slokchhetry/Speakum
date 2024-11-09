@@ -3,117 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Speakum - Chat Platform</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <title>Chatroom</title>
+    <script src="https://cdn.jsdelivr.net/npm/firebase@9.9.3/firebase-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/firebase@9.9.3/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/firebase@9.9.3/firebase-storage.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.2.0/dist/lucide.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.0.3/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
-    <!-- Landing Page -->
-    <div id="landing-page" class="page active">
-        <div class="container">
-            <header>
-                <h1>Welcome to Speakum</h1>
-                <p>Create and join themed chatrooms instantly</p>
-            </header>
+<body class="bg-gray-100 dark:bg-gray-900">
 
-            <div class="theme-preview">
-                <div class="theme-card meme">
-                    <h3>Meme Room</h3>
-                    <div class="preview-content"></div>
-                </div>
-                <div class="theme-card dating">
-                    <h3>Dating Room</h3>
-                    <div class="preview-content"></div>
-                </div>
-                <div class="theme-card normal">
-                    <h3>Normal Room</h3>
-                    <div class="preview-content"></div>
-                </div>
-                <div class="theme-card gaming">
-                    <h3>Gaming Room</h3>
-                    <div class="preview-content"></div>
-                </div>
-                <div class="theme-card space">
-                    <h3>Space Room</h3>
-                    <div class="preview-content"></div>
-                </div>
-            </div>
-
-            <div class="auth-container">
-                <div class="tabs">
-                    <button class="tab-btn active" data-tab="login">Login</button>
-                    <button class="tab-btn" data-tab="signup">Sign Up</button>
-                </div>
-
-                <div class="tab-content active" id="login">
-                    <form id="login-form">
-                        <input type="email" placeholder="Email" required>
-                        <input type="password" placeholder="Password" required>
-                        <button type="submit">Login</button>
-                    </form>
-                </div>
-
-                <div class="tab-content" id="signup">
-                    <form id="signup-form">
-                        <input type="text" placeholder="Username" required>
-                        <input type="email" placeholder="Email" required>
-                        <input type="password" placeholder="Password" required>
-                        <button type="submit">Sign Up</button>
-                    </form>
-                </div>
-            </div>
+    <div id="loginSection" class="flex justify-center items-center h-screen">
+        <div class="bg-white p-8 rounded-lg shadow-lg">
+            <input type="text" id="usernameInput" placeholder="Enter username" class="p-2 rounded border mb-4">
+            <button onclick="joinChat()" class="bg-blue-500 text-white p-2 rounded">Join Chat</button>
         </div>
     </div>
 
-    <!-- Dashboard -->
-    <div id="dashboard" class="page">
-        <div class="sidebar">
-            <div class="rooms-list">
-                <h2>Your Rooms</h2>
-                <div id="joined-rooms"></div>
-            </div>
-            <button id="create-room-btn" class="btn-primary">Create Room</button>
+    <div id="chatSection" class="hidden">
+        <div class="flex justify-between items-center p-4 bg-blue-600 text-white">
+            <span id="onlineCount">0 online</span>
+            <button onclick="toggleTheme()" class="p-2 bg-gray-700 rounded">🌙</button>
         </div>
 
-        <div class="main-content">
-            <header>
-                <h1>Dashboard</h1>
-                <div class="user-controls">
-                    <button id="profile-btn"><i class="fas fa-user"></i></button>
-                    <button id="logout-btn"><i class="fas fa-sign-out-alt"></i></button>
-                </div>
-            </header>
-
-            <div class="themes-grid">
-                <!-- Theme cards will be dynamically added here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Chat Room -->
-    <div id="chatroom" class="page">
-        <div class="chat-container">
-            <header class="chat-header">
-                <h2 id="room-name"></h2>
-                <div class="room-controls">
-                    <button class="pin-btn"><i class="fas fa-thumbtack"></i></button>
-                    <button class="members-btn"><i class="fas fa-users"></i></button>
-                </div>
-            </header>
-
-            <div class="messages-container" id="messages"></div>
-
-            <div class="chat-input">
-                <button class="attachment-btn"><i class="fas fa-paperclip"></i></button>
-                <button class="emoji-btn"><i class="fas fa-smile"></i></button>
-                <input type="text" id="message-input" placeholder="Type a message...">
-                <button class="send-btn"><i class="fas fa-paper-plane"></i></button>
-            </div>
+        <div class="flex space-x-4 p-4">
+            <button onclick="toggleEmojiPicker()" class="bg-yellow-300 p-2 rounded">😊</button>
+            <input type="file" id="fileInput" class="hidden">
+            <button onclick="document.getElementById('fileInput').click()" class="bg-green-500 p-2 rounded">Upload File</button>
         </div>
 
-        <div class="members-sidebar">
-            <h3>Room Members</h3>
-            <div id="members-list"></div>
+        <div id="messages" class="overflow-y-scroll h-72 p-4 bg-white rounded-lg border mb-4">
+            <!-- Messages will appear here -->
+        </div>
+
+        <div id="typingIndicator" class="text-sm text-gray-500 p-4"></div>
+
+        <input id="messageInput" type="text" placeholder="Type a message" class="p-2 rounded border w-full mb-4" oninput="updateTypingStatus(true)">
+        <button onclick="sendMessage()" class="bg-blue-500 text-white p-2 rounded w-full">Send</button>
+
+        <div id="emojiPicker" class="hidden p-4 bg-white shadow-lg absolute mt-2 rounded-lg z-10">
+            <!-- Add emojis here -->
+            <span class="emoji" onclick="addEmoji('😊')">😊</span>
+            <span class="emoji" onclick="addEmoji('😂')">😂</span>
+            <span class="emoji" onclick="addEmoji('😍')">😍</span>
+            <!-- Add more emojis as needed -->
+        </div>
+
+        <div id="onlineUsers" class="hidden bg-gray-800 text-white p-4 rounded-lg absolute top-16 right-4 w-72">
+            <button onclick="toggleOnlineUsers()" class="text-white">Toggle Online Users</button>
+            <ul id="usersList">
+                <!-- Online users list -->
+            </ul>
         </div>
     </div>
 
