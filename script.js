@@ -1,3 +1,4 @@
+
 // Firebase initialization
 const firebaseConfig = {
     apiKey: "AIzaSyCbolT_azEYHAZWTFkXxK3URxulrKwyzu0",
@@ -14,37 +15,51 @@ firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
 // Global Variables
-let username = '';
+let username = localStorage.getItem('chatUsername') || '';
 let roomId = new URLSearchParams(window.location.search).get('room') || 
              Math.random().toString(36).substring(2, 8);
 
-// Initialize Lucide icons
-lucide.createIcons();
+// Check if user is already logged in
+document.addEventListener('DOMContentLoaded', () => {
+    if (username) {
+        joinChat(true);
+    }
+});
 
 // Main Chat Functions
-function joinChat() {
-    username = document.getElementById('usernameInput').value.trim();
-    if (username) {
-        // Update UI
-        document.getElementById('loginSection').style.display = 'none';
-        document.getElementById('chatSection').style.display = 'flex';
-        
-        // Set user as online
-        const userStatusRef = database.ref(`rooms/${roomId}/users/${username}`);
-        userStatusRef.set(true);
-        
-        // Remove user when disconnected
-        userStatusRef.onDisconnect().remove();
+function joinChat(autoJoin = false) {
+    if (!autoJoin) {
+        const inputUsername = document.getElementById('usernameInput').value.trim();
+        if (!inputUsername) {
+            alert('Please enter a username');
+            return;
+        }
+        username = inputUsername;
+        localStorage.setItem('chatUsername', username);
+    }
 
-        // Initialize chat features
-        loadMessages();
-        setupOnlineUsers();
-        setupMessageInput();
+    // Update UI
+    document.getElementById('loginSection').style.display = 'none';
+    document.getElementById('chatSection').style.display = 'flex';
+    
+    // Set user as online
+    const userStatusRef = database.ref(`rooms/${roomId}/users/${username}`);
+    userStatusRef.set({
+        online: true,
+        lastSeen: firebase.database.ServerValue.TIMESTAMP
+    });
+    
+    // Remove user when disconnected
+    userStatusRef.onDisconnect().remove();
 
-        // Update URL with room ID
+    // Initialize chat features
+    loadMessages();
+    setupOnlineUsers();
+    setupMessageInput();
+
+    // Update URL with room ID
+    if (!window.location.search.includes('room')) {
         window.history.replaceState(null, '', `?room=${roomId}`);
-    } else {
-        alert('Please enter a username');
     }
 }
 
@@ -59,12 +74,10 @@ function sendMessage() {
             timestamp: Date.now()
         };
 
-        // Push message to Firebase
+        messageInput.value = '';
+        messageInput.focus();
+
         database.ref(`rooms/${roomId}/messages`).push(messageData)
-            .then(() => {
-                messageInput.value = '';
-                messageInput.focus();
-            })
             .catch(error => {
                 console.error("Error sending message:", error);
                 alert("Failed to send message. Please try again.");
@@ -74,41 +87,72 @@ function sendMessage() {
 
 function loadMessages() {
     const messagesDiv = document.getElementById('messages');
-    
-    // Clear existing messages
     messagesDiv.innerHTML = '';
     
-    // Listen for new messages
-    database.ref(`rooms/${roomId}/messages`).on('child_added', (snapshot) => {
-        const data = snapshot.val();
-        const messageId = snapshot.key;
-        const messageElement = createMessageElement(data, messageId);
-        
-        messagesDiv.appendChild(messageElement);
-        lucide.createIcons();
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    });
+    database.ref(`rooms/${roomId}/messages`)
+        .orderByChild('timestamp')
+        .limitToLast(100)
+        .on('child_added', (snapshot) => {
+            const data = snapshot.val();
+            const messageElement = createMessageElement(data, snapshot.key);
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
 }
 
 function createMessageElement(data, messageId) {
     const isOwnMessage = data.username === username;
     const messageElement = document.createElement('div');
     
-    messageElement.className = `flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`;
+    messageElement.className = `message-appear flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`;
     messageElement.id = `message-${messageId}`;
     
+    const time = new Date(data.timestamp).toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+    
     messageElement.innerHTML = `
-        <div class="max-w-[70%] ${isOwnMessage ? 'bg-indigo-600' : 'bg-gray-700'} rounded-lg px-4 py-2">
-            <div class="text-sm ${isOwnMessage ? 'text-indigo-200' : 'text-gray-300'} mb-1">${data.username}</div>
-            <div class="break-words">${data.message}</div>
-            <div class="text-xs text-gray-400 mt-1">${formatTime(data.timestamp)}</div>
+        <div class="max-w-[75%] md:max-w-[60%] ${isOwnMessage ? 'bg-indigo-600 text-white' : 'bg-white'} 
+             rounded-2xl px-4 py-2 shadow-sm ${isOwnMessage ? 'rounded-tr-none' : 'rounded-tl-none'}">
+            <div class="text-xs ${isOwnMessage ? 'text-indigo-200' : 'text-gray-500'} mb-1">${data.username}</div>
+            <div class="text-sm break-words">${formatMessage(data.message)}</div>
+            <div class="text-xs ${isOwnMessage ? 'text-indigo-200' : 'text-gray-500'} mt-1 text-right">${time}</div>
         </div>
     `;
     
     return messageElement;
 }
 
-// Online Users Functions
+function formatMessage(message) {
+    // Convert URLs to clickable links
+    message = message.replace(
+        /(https?:\/\/[^\s]+)/g,
+        '<a href="$1" target="_blank" class="underline hover:text-indigo-300">$1</a>'
+    );
+
+    // Convert emojis shortcuts
+    const emojiMap = {
+        ':)': '😊',
+        ':D': '😃',
+        ':(': '😢',
+        ';)': '😉',
+        '<3': '❤️',
+        ':p': '😛',
+        ':P': '😛',
+        ':o': '😮',
+        ':O': '😮',
+        'xD': '😆',
+        'XD': '😆'
+    };
+
+    for (let emoji in emojiMap) {
+        message = message.replace(new RegExp(emoji, 'g'), emojiMap[emoji]);
+    }
+
+    return message;
+}
+
 function setupOnlineUsers() {
     const usersRef = database.ref(`rooms/${roomId}/users`);
     
@@ -125,14 +169,44 @@ function setupOnlineUsers() {
         // Add each user to the list
         Object.keys(users).forEach(user => {
             const userElement = document.createElement('div');
-            userElement.className = `p-2 rounded ${user === username ? 'bg-indigo-600' : 'bg-gray-700'}`;
-            userElement.textContent = user;
+            userElement.className = `p-3 rounded-lg ${user === username ? 
+                'bg-indigo-100 text-indigo-700' : 
+                'bg-gray-50'} flex items-center gap-2`;
+            userElement.innerHTML = `
+                <i class="fas fa-circle text-green-400 text-xs"></i>
+                <span class="font-medium">${user}</span>
+            `;
             usersList.appendChild(userElement);
         });
     });
 }
 
-// Emoji Functions
+function setupMessageInput() {
+    const messageInput = document.getElementById('messageInput');
+    
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    messageInput.focus();
+}
+
+// UI Functions
+function toggleSidebar() {
+    const userList = document.getElementById('userList');
+    userList.classList.toggle('hidden');
+}
+
+function toggleUserList() {
+    const userList = document.getElementById('userList');
+    if (window.innerWidth < 768) { // mobile
+        userList.classList.toggle('hidden');
+    }
+}
+
 function toggleEmojiPicker() {
     const emojiPicker = document.getElementById('emojiPicker');
     emojiPicker.classList.toggle('hidden');
@@ -146,50 +220,44 @@ function addEmoji(emoji) {
     
     messageInput.value = textBefore + emoji + textAfter;
     messageInput.focus();
+    messageInput.selectionStart = cursorPos + emoji.length;
+    messageInput.selectionEnd = cursorPos + emoji.length;
+    
     toggleEmojiPicker();
-}
-
-// Utility Functions
-function formatTime(timestamp) {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function copyRoomLink() {
     const roomLink = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
     navigator.clipboard.writeText(roomLink)
-        .then(() => alert('Room link copied to clipboard!'))
-        .catch(err => console.error('Failed to copy room link:', err));
+        .then(() => {
+            alert('Room link copied! Share it with your friends to chat together.');
+        })
+        .catch(err => {
+            console.error('Failed to copy room link:', err);
+            alert('Failed to copy room link. Please try again.');
+        });
 }
 
-function toggleOnlineUsers() {
-    const onlineUsers = document.getElementById('onlineUsers');
-    onlineUsers.classList.toggle('translate-x-full');
-}
-
-// Setup message input
-function setupMessageInput() {
-    const messageInput = document.getElementById('messageInput');
-    
-    // Send message on Enter key
-    messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-
-    // Focus input after joining
-    messageInput.focus();
+// Utility function to format time
+function formatTime(timestamp) {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-    // Close emoji picker when clicking outside
+    // Handle clicks outside emoji picker
     document.addEventListener('click', (e) => {
         const emojiPicker = document.getElementById('emojiPicker');
         if (!e.target.closest('#emojiPicker') && !e.target.closest('button')) {
             emojiPicker.classList.add('hidden');
+        }
+    });
+
+    // Handle Enter key in username input
+    document.getElementById('usernameInput')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            joinChat();
         }
     });
 });
@@ -198,5 +266,17 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('beforeunload', () => {
     if (username) {
         database.ref(`rooms/${roomId}/users/${username}`).remove();
+    }
+});
+
+// Handle visibility change
+document.addEventListener('visibilitychange', () => {
+    if (username) {
+        const userRef = database.ref(`rooms/${roomId}/users/${username}`);
+        if (document.hidden) {
+            userRef.update({ online: false, lastSeen: firebase.database.ServerValue.TIMESTAMP });
+        } else {
+            userRef.update({ online: true });
+        }
     }
 });
