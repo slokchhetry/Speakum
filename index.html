@@ -4,41 +4,54 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Modern Chatroom</title>
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
-    <!-- Add Tailwind CSS -->
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Custom styles -->
     <style>
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
         }
-        ::-webkit-scrollbar-track {
-            background: #1a1b1e;
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
-        ::-webkit-scrollbar-thumb {
-            background: #4b5563;
-            border-radius: 3px;
+        .message-appear {
+            animation: slideUp 0.3s ease-out;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #6366f1;
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
-<body class="bg-gray-900 text-white">
+<body class="bg-gray-100 h-screen">
     <!-- Login Section -->
-    <div id="loginSection" class="h-screen flex items-center justify-center">
-        <div class="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-md">
-            <h2 class="text-2xl font-bold mb-6 text-center">Join Chatroom</h2>
-            <div class="space-y-4">
-                <input type="text" id="usernameInput" 
-                       class="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
-                       placeholder="Enter your username">
+    <div id="loginSection" class="h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 to-purple-700 p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-800">Welcome to Chat</h2>
+                <p class="text-gray-600 mt-2">Connect with others in real-time</p>
+            </div>
+            <div class="space-y-6">
+                <div class="space-y-2">
+                    <label for="usernameInput" class="text-sm font-medium text-gray-700">Username</label>
+                    <input type="text" id="usernameInput" 
+                           class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
+                           placeholder="Enter your username">
+                </div>
                 <button onclick="joinChat()" 
                         class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
-                    <i data-lucide="log-in" class="w-5 h-5"></i>
+                    <i class="fas fa-sign-in-alt"></i>
                     Join Chat
                 </button>
             </div>
@@ -46,68 +59,76 @@
     </div>
 
     <!-- Chat Section -->
-    <div id="chatSection" class="hidden h-screen flex flex-col">
+    <div id="chatSection" class="hidden h-screen flex flex-col bg-white">
         <!-- Chat Header -->
-        <div class="bg-gray-800 p-4 shadow-lg">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <i data-lucide="messages-square" class="w-6 h-6 text-indigo-500"></i>
-                    <h2 class="text-xl font-semibold">Chatroom</h2>
-                    <div class="flex items-center text-gray-400 text-sm">
-                        <i data-lucide="users" class="w-4 h-4 mr-2"></i>
+        <div class="bg-indigo-600 text-white px-4 py-3 flex items-center justify-between shadow-lg">
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleSidebar()" class="md:hidden">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                <div>
+                    <h2 class="font-semibold text-lg">Chat Room</h2>
+                    <div class="text-xs text-indigo-200 flex items-center">
+                        <i class="fas fa-circle text-green-400 mr-1 text-[8px]"></i>
                         <span id="onlineCount">0 online</span>
                     </div>
                 </div>
-                <div class="flex space-x-2">
-                    <button onclick="toggleOnlineUsers()" 
-                            class="p-2 hover:bg-gray-700 rounded-lg transition-colors">
-                        <i data-lucide="users" class="w-5 h-5"></i>
-                    </button>
-                    <button onclick="copyRoomLink()" 
-                            class="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-colors">
-                        <i data-lucide="link" class="w-4 h-4"></i>
-                        <span>Share Room</span>
-                    </button>
-                </div>
             </div>
-        </div>
-
-        <!-- Messages Area -->
-        <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
-        <div id="typingIndicator" class="text-gray-400 text-sm italic px-4"></div>
-
-        <!-- Chat Input -->
-        <div class="bg-gray-800 p-4">
-            <div class="flex items-center space-x-2">
-                <div class="relative flex-1">
-                    <input type="text" id="messageInput"
-                           class="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors pr-10"
-                           placeholder="Type your message...">
-                    <button onclick="toggleEmojiPicker()" 
-                            class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 p-1">
-                        <i data-lucide="smile" class="w-5 h-5"></i>
-                    </button>
-                    <!-- Emoji Picker -->
-                    <div id="emojiPicker" class="hidden absolute bottom-full right-0 mb-2 bg-gray-800 rounded-lg shadow-lg p-2 grid grid-cols-5 gap-1">
-                        <button onclick="addEmoji('😊')" class="p-2 hover:bg-gray-700 rounded">😊</button>
-                        <button onclick="addEmoji('😂')" class="p-2 hover:bg-gray-700 rounded">😂</button>
-                        <button onclick="addEmoji('👍')" class="p-2 hover:bg-gray-700 rounded">👍</button>
-                        <button onclick="addEmoji('❤️')" class="p-2 hover:bg-gray-700 rounded">❤️</button>
-                        <button onclick="addEmoji('🎉')" class="p-2 hover:bg-gray-700 rounded">🎉</button>
-                    </div>
-                </div>
-                <button onclick="sendMessage()" 
-                        class="bg-indigo-600 hover:bg-indigo-700 p-3 rounded-lg transition-colors flex items-center justify-center">
-                    <i data-lucide="send" class="w-5 h-5"></i>
+            <div class="flex items-center space-x-4">
+                <button onclick="copyRoomLink()" class="hover:bg-indigo-700 p-2 rounded-full transition-colors">
+                    <i class="fas fa-share-alt"></i>
+                </button>
+                <button onclick="toggleUserList()" class="hover:bg-indigo-700 p-2 rounded-full transition-colors">
+                    <i class="fas fa-users"></i>
                 </button>
             </div>
         </div>
-    </div>
 
-    <!-- Online Users Sidebar -->
-    <div id="onlineUsers" class="fixed right-0 top-0 bottom-0 w-64 bg-gray-800 transform translate-x-full transition-transform duration-300 ease-in-out p-4">
-        <h3 class="text-lg font-semibold mb-4">Online Users</h3>
-        <div id="usersList" class="space-y-2"></div>
+        <!-- Main Chat Area -->
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Messages Area -->
+            <div class="flex-1 flex flex-col">
+                <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide bg-gray-50"></div>
+                
+                <!-- Chat Input -->
+                <div class="bg-white border-t p-4">
+                    <div class="flex items-center space-x-2">
+                        <div class="relative flex-1">
+                            <input type="text" id="messageInput"
+                                   class="w-full px-4 py-3 rounded-full border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none pr-12"
+                                   placeholder="Type your message...">
+                            <button onclick="toggleEmojiPicker()" 
+                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-indigo-600">
+                                <i class="far fa-smile text-xl"></i>
+                            </button>
+                        </div>
+                        <button onclick="sendMessage()" 
+                                class="bg-indigo-600 hover:bg-indigo-700 h-12 w-12 rounded-full flex items-center justify-center text-white transition-colors">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Online Users Sidebar -->
+            <div id="userList" class="hidden md:block w-64 bg-white border-l">
+                <div class="p-4 border-b">
+                    <h3 class="font-semibold text-gray-700">Online Users</h3>
+                </div>
+                <div id="usersList" class="p-4 space-y-2"></div>
+            </div>
+        </div>
+
+        <!-- Emoji Picker -->
+        <div id="emojiPicker" class="hidden absolute bottom-20 right-4 bg-white rounded-lg shadow-xl p-3 grid grid-cols-6 gap-2 border">
+            <!-- Add more emojis as needed -->
+            <button onclick="addEmoji('😊')" class="hover:bg-gray-100 p-2 rounded">😊</button>
+            <button onclick="addEmoji('😂')" class="hover:bg-gray-100 p-2 rounded">😂</button>
+            <button onclick="addEmoji('❤️')" class="hover:bg-gray-100 p-2 rounded">❤️</button>
+            <button onclick="addEmoji('👍')" class="hover:bg-gray-100 p-2 rounded">👍</button>
+            <button onclick="addEmoji('🎉')" class="hover:bg-gray-100 p-2 rounded">🎉</button>
+            <button onclick="addEmoji('🔥')" class="hover:bg-gray-100 p-2 rounded">🔥</button>
+        </div>
     </div>
 
     <script src="script.js"></script>
