@@ -8,175 +8,186 @@ const firebaseConfig = {
     appId: "1:596735564522:web:c0be7b5fb68facf8fed593",
     measurementId: "G-HRN7LRKP7Y"
 };
-const app = firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
 const storage = firebase.storage();
 
-let username = "";
-const roomId = "general";  // Example roomId
-let lastTypingUpdate = Date.now();
-
-// Initialize elements
-const messageInput = document.getElementById('messageInput');
-const messagesContainer = document.getElementById('messages');
-const typingIndicator = document.getElementById('typingIndicator');
-const emojiPicker = document.getElementById('emojiPicker');
-const fileInput = document.getElementById('fileInput');
-const onlineCountElement = document.getElementById('onlineCount');
-const onlineUsersElement = document.getElementById('usersList');
-
-// Check if user is logged in
-function checkLoginStatus() {
-    username = localStorage.getItem('username');
-    if (username) {
-        document.getElementById('loginSection').classList.add('hidden');
-        document.getElementById('chatSection').classList.remove('hidden');
-        loadMessages();
-        updateOnlineUsers(true);
+class SpeakumChat {
+    constructor() {
+        this.currentUser = null;
+        this.currentRoom = 'general';
+        this.rooms = new Map();
+        this.users = new Map();
+        this.init();
     }
-}
 
-function joinChat() {
-    username = document.getElementById('usernameInput').value.trim();
-    if (username) {
-        localStorage.setItem('username', username);
-        document.getElementById('loginSection').classList.add('hidden');
-        document.getElementById('chatSection').classList.remove('hidden');
-        loadMessages();
-        updateOnlineUsers(true);
-    } else {
-        alert("Please enter a username.");
-    }
-}
-
-// Load messages from Firebase
-function loadMessages() {
-    const messagesRef = database.ref('chatrooms/' + roomId + '/messages');
-    messagesRef.on('child_added', snapshot => {
-        const message = snapshot.val();
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('message', 'flex', 'items-start', 'space-x-2');
-        messageElement.innerHTML = `
-            <div class="flex-shrink-0">
-                <span class="font-bold">${message.username}</span>
-            </div>
-            <div class="flex-1">
-                <div class="bg-secondary p-3 rounded-lg">
-                    <span>${message.text}</span>
-                </div>
-            </div>
-        `;
-        messagesContainer.appendChild(messageElement);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    });
-}
-
-// Send message to Firebase
-function sendMessage() {
-    const messageText = messageInput.value.trim();
-    if (messageText) {
-        const messagesRef = database.ref('chatrooms/' + roomId + '/messages');
-        messagesRef.push({
-            username: username,
-            text: messageText,
-            timestamp: new Date().toISOString()
+    async init() {
+        // Auth state observer
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                this.currentUser = user;
+                this.setupUserPresence();
+                this.loadRooms();
+                this.loadMessages();
+            } else {
+                this.showLoginModal();
+            }
         });
-        messageInput.value = '';
-        updateTypingStatus(false);
+
+        // Setup event listeners
+        this.setupEventListeners();
     }
-}
 
-// Update typing status to Firebase
-function updateTypingStatus(isTyping) {
-    if (Date.now() - lastTypingUpdate < 1000) return;
-    lastTypingUpdate = Date.now();
-    const typingRef = database.ref('chatrooms/' + roomId + '/typing');
-    typingRef.set(isTyping ? username : null);
-}
+    setupEventListeners() {
+        // Message input
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this.sendMessage();
+            }
+        });
 
-// Listen for typing indicator
-database.ref('chatrooms/' + roomId + '/typing').on('value', snapshot => {
-    const typingUser = snapshot.val();
-    if (typingUser && typingUser !== username) {
-        typingIndicator.textContent = `${typingUser} is typing...`;
-    } else {
-        typingIndicator.textContent = '';
-    }
-});
-
-// Toggle emoji picker visibility
-function toggleEmojiPicker() {
-    emojiPicker.classList.toggle('hidden');
-}
-
-// Add emoji to input field
-function addEmoji(emoji) {
-    messageInput.value += emoji;
-    emojiPicker.classList.add('hidden');
-    messageInput.focus();
-}
-
-// Handle file upload
-fileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        const storageRef = storage.ref('chatrooms/' + roomId + '/' + file.name);
-        storageRef.put(file).then(() => {
-            storageRef.getDownloadURL().then(url => {
-                const messagesRef = database.ref('chatrooms/' + roomId + '/messages');
-                messagesRef.push({
-                    username: username,
-                    text: `<img src="${url}" alt="uploaded image" class="max-w-xs rounded-lg" />`,
-                    timestamp: new Date().toISOString()
-                });
+        // Room selection
+        document.querySelectorAll('.room-item').forEach(room => {
+            room.addEventListener('click', (e) => {
+                this.switchRoom(e.target.dataset.roomId);
             });
         });
     }
-});
 
-// Update online users in Firebase
-function updateOnlineUsers(isOnline) {
-    const onlineUsersRef = database.ref('chatrooms/' + roomId + '/onlineUsers');
-    const userRef = onlineUsersRef.child(username);
-    if (isOnline) {
-        userRef.set(true);
-    } else {
-        userRef.remove();
+    async sendMessage(content = null) {
+        const input = document.getElementById('messageInput');
+        const message = content || input.value.trim();
+
+        if (!message) return;
+
+        try {
+            await db.ref(`rooms/${this.currentRoom}/messages`).push({
+                content: message,
+                author: this.currentUser.uid,
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                displayName: this.currentUser.displayName,
+                photoURL: this.currentUser.photoURL
+            });
+
+            input.value = '';
+        } catch (error) {
+            console.error('Error sending message:', error);
+        }
     }
-    onlineUsersRef.on('value', snapshot => {
-        const onlineUsers = snapshot.val();
-        const onlineList = Object.keys(onlineUsers || {}).map(user => `<li>${user}</li>`).join('');
-        onlineUsersElement.innerHTML = onlineList;
-        onlineCountElement.textContent = `${Object.keys(onlineUsers || {}).length} online`;
-    });
-}
 
-// Toggle online users sidebar
-function toggleOnlineUsers() {
-    onlineUsersElement.classList.toggle('hidden');
-}
+    loadMessages() {
+        const messagesRef = db.ref(`rooms/${this.currentRoom}/messages`);
+        
+        messagesRef.on('child_added', snapshot => {
+            const message = snapshot.val();
+            this.displayMessage(message, snapshot.key);
+        });
+    }
 
-// Toggle light/dark theme
-function toggleTheme() {
-    const currentTheme = document.body.classList.contains('dark') ? 'dark' : 'light';
-    if (currentTheme === 'dark') {
-        document.body.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-    } else {
-        document.body.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
+    displayMessage(message, messageId) {
+        const messagesContainer = document.querySelector('.messages-container');
+        const messageElement = document.createElement('div');
+        
+        messageElement.className = `message ${
+            message.author === this.currentUser.uid ? 'sent' : 'received'
+        }`;
+
+        messageElement.innerHTML = `
+            <div class="message-header">
+                <img class="user-avatar" src="${message.photoURL || 'default-avatar.png'}" alt="User avatar">
+                <span class="username">${message.displayName}</span>
+                <span class="timestamp">${this.formatTimestamp(message.timestamp)}</span>
+            </div>
+            <div class="message-content">${this.formatMessage(message.content)}</div>
+            <div class="message-actions">
+                <span class="reaction-button">👍</span>
+                <span class="reaction-button">❤️</span>
+                <span class="reaction-button">😂</span>
+            </div>
+        `;
+
+        messagesContainer.appendChild(messageElement);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    formatMessage(content) {
+        // Convert URLs to links
+        content = content.replace(
+            /(https?:\/\/[^\s]+)/g,
+            '<a href="$1" target="_blank">$1</a>'
+        );
+
+        // Convert user mentions
+        content = content.replace(
+            /@(\w+)/g,
+            '<span class="mention">@$1</span>'
+        );
+
+        return content;
+    }
+
+    formatTimestamp(timestamp) {
+        return new Date(timestamp).toLocaleTimeString();
+    }
+
+    setupUserPresence() {
+        const userRef = db.ref(`users/${this.currentUser.uid}`);
+        const connectionRef = db.ref('.info/connected');
+
+        connectionRef.on('value', snapshot => {
+            if (snapshot.val()) {
+                userRef.onDisconnect().remove();
+                userRef.set({
+                    displayName: this.currentUser.displayName,
+                    photoURL: this.currentUser.photoURL,
+                    lastSeen: firebase.database.ServerValue.TIMESTAMP
+                });
+            }
+        });
+    }
+
+    async switchRoom(roomId) {
+        // Remove previous listeners
+        db.ref(`rooms/${this.currentRoom}/messages`).off();
+        
+        this.currentRoom = roomId;
+        
+        // Clear messages
+        document.querySelector('.messages-container').innerHTML = '';
+        
+        // Load new room's messages
+        this.loadMessages();
+        
+        // Update UI
+        document.querySelectorAll('.room-item').forEach(room => {
+            room.classList.toggle('active', room.dataset.roomId === roomId);
+        });
+    }
+
+    showLoginModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <h2>Login to Speakum</h2>
+            <button onclick="speakumChat.loginWithGoogle()">Login with Google</button>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+
+    async loginWithGoogle() {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        try {
+            await auth.signInWithPopup(provider);
+        } catch (error) {
+            console.error('Login error:', error);
+        }
     }
 }
 
-// Apply theme from local storage
-function applyTheme() {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-        document.body.classList.add('dark');
-    } else {
-        document.body.classList.remove('dark');
-    }
-}
-
-// Initialize theme on page load
-applyTheme();
+// Initialize chat
+const speakumChat = new SpeakumChat();
