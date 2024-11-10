@@ -3,57 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatroom</title>
-    <script src="https://cdn.jsdelivr.net/npm/firebase@9.9.3/firebase-app.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/firebase@9.9.3/firebase-database.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/firebase@9.9.3/firebase-storage.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lucide@0.2.0/dist/lucide.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.0.3/dist/tailwind.min.css" rel="stylesheet">
+    <title>Speakum</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-storage-compat.js"></script>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900">
-
-    <div id="loginSection" class="flex justify-center items-center h-screen">
-        <div class="bg-white p-8 rounded-lg shadow-lg">
-            <input type="text" id="usernameInput" placeholder="Enter username" class="p-2 rounded border mb-4">
-            <button onclick="joinChat()" class="bg-blue-500 text-white p-2 rounded">Join Chat</button>
+<body>
+    <div class="sidebar">
+        <h2>Rooms</h2>
+        <div class="room-list">
+            <div class="room-item active" data-room-id="general">General</div>
+            <div class="room-item" data-room-id="memes">Memes</div>
+            <div class="room-item" data-room-id="random">Random</div>
         </div>
     </div>
 
-    <div id="chatSection" class="hidden">
-        <div class="flex justify-between items-center p-4 bg-blue-600 text-white">
-            <span id="onlineCount">0 online</span>
-            <button onclick="toggleTheme()" class="p-2 bg-gray-700 rounded">🌙</button>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2 id="currentRoom">General</h2>
         </div>
-
-        <div class="flex space-x-4 p-4">
-            <button onclick="toggleEmojiPicker()" class="bg-yellow-300 p-2 rounded">😊</button>
-            <input type="file" id="fileInput" class="hidden">
-            <button onclick="document.getElementById('fileInput').click()" class="bg-green-500 p-2 rounded">Upload File</button>
+        
+        <div class="messages-container"></div>
+        
+        <div class="input-container">
+            <div class="input-wrapper">
+                <input type="text" id="messageInput" placeholder="Type a message...">
+            </div>
+            <div class="input-actions">
+                <button class="action-button">😊</button>
+                <button class="action-button">📎</button>
+                <button class="action-button" onclick="speakumChat.sendMessage()">Send</button>
+            </div>
         </div>
+    </div>
 
-        <div id="messages" class="overflow-y-scroll h-72 p-4 bg-white rounded-lg border mb-4">
-            <!-- Messages will appear here -->
-        </div>
-
-        <div id="typingIndicator" class="text-sm text-gray-500 p-4"></div>
-
-        <input id="messageInput" type="text" placeholder="Type a message" class="p-2 rounded border w-full mb-4" oninput="updateTypingStatus(true)">
-        <button onclick="sendMessage()" class="bg-blue-500 text-white p-2 rounded w-full">Send</button>
-
-        <div id="emojiPicker" class="hidden p-4 bg-white shadow-lg absolute mt-2 rounded-lg z-10">
-            <!-- Add emojis here -->
-            <span class="emoji" onclick="addEmoji('😊')">😊</span>
-            <span class="emoji" onclick="addEmoji('😂')">😂</span>
-            <span class="emoji" onclick="addEmoji('😍')">😍</span>
-            <!-- Add more emojis as needed -->
-        </div>
-
-        <div id="onlineUsers" class="hidden bg-gray-800 text-white p-4 rounded-lg absolute top-16 right-4 w-72">
-            <button onclick="toggleOnlineUsers()" class="text-white">Toggle Online Users</button>
-            <ul id="usersList">
-                <!-- Online users list -->
-            </ul>
-        </div>
+    <div class="user-list">
+        <h2>Online Users</h2>
+        <div id="onlineUsers"></div>
     </div>
 
     <script src="script.js"></script>
