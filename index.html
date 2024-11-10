@@ -3,46 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Speakum</title>
+    <title>Modern Chatroom</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
     <link rel="stylesheet" href="style.css">
-    <!-- Firebase Scripts -->
-    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-storage-compat.js"></script>
 </head>
 <body>
-    <div class="sidebar">
-        <h2>Rooms</h2>
-        <div class="room-list">
-            <div class="room-item active" data-room-id="general">General</div>
-            <div class="room-item" data-room-id="memes">Memes</div>
-            <div class="room-item" data-room-id="random">Random</div>
+    <div id="loginSection">
+        <div class="login-card">
+            <h2>Join Chatroom</h2>
+            <div style="margin: 20px 0;">
+                <input type="text" id="usernameInput" placeholder="Enter your username">
+            </div>
+            <button onclick="joinChat()">
+                <i data-lucide="log-in"></i>
+                Join Chat
+            </button>
         </div>
     </div>
 
-    <div class="chat-container">
+    <div id="chatSection">
         <div class="chat-header">
-            <h2 id="currentRoom">General</h2>
+            <div class="header-info">
+                <i data-lucide="messages-square"></i>
+                <h2>Chatroom</h2>
+                <div class="online-status">
+                    <i data-lucide="users"></i>
+                    <span id="onlineCount">0 online</span>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button onclick="toggleOnlineUsers()">
+                    <i data-lucide="users"></i>
+                </button>
+                <button onclick="copyRoomLink()">
+                    <i data-lucide="link"></i>
+                    Share Room
+                </button>
+            </div>
         </div>
-        
-        <div class="messages-container"></div>
-        
-        <div class="input-container">
+
+        <div id="messages"></div>
+        <div id="typingIndicator" class="typing-indicator"></div>
+
+        <div class="chat-input-container">
             <div class="input-wrapper">
-                <input type="text" id="messageInput" placeholder="Type a message...">
+                <input type="text" id="messageInput" placeholder="Type your message...">
+                <button class="icon-button" onclick="toggleEmojiPicker()">
+                    <i data-lucide="smile"></i>
+                </button>
+                <div class="emoji-picker" id="emojiPicker">
+                    <span onclick="addEmoji('😊')">😊</span>
+                    <span onclick="addEmoji('😂')">😂</span>
+                    <span onclick="addEmoji('👍')">👍</span>
+                    <span onclick="addEmoji('❤️')">❤️</span>
+                    <span onclick="addEmoji('🎉')">🎉</span>
+                </div>
             </div>
-            <div class="input-actions">
-                <button class="action-button">😊</button>
-                <button class="action-button">📎</button>
-                <button class="action-button" onclick="speakumChat.sendMessage()">Send</button>
-            </div>
+            <button onclick="sendMessage()">
+                <i data-lucide="send"></i>
+            </button>
         </div>
     </div>
 
-    <div class="user-list">
-        <h2>Online Users</h2>
-        <div id="onlineUsers"></div>
+    <div class="online-users" id="onlineUsers">
+        <h3>Online Users</h3>
+        <div id="usersList"></div>
     </div>
 
     <script src="script.js"></script>
