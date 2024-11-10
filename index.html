@@ -7,69 +7,107 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
-    <link rel="stylesheet" href="style.css">
+    <!-- Add Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom styles -->
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1a1b1e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6366f1;
+        }
+    </style>
 </head>
-<body>
-    <div id="loginSection">
-        <div class="login-card">
-            <h2>Join Chatroom</h2>
-            <div style="margin: 20px 0;">
-                <input type="text" id="usernameInput" placeholder="Enter your username">
+<body class="bg-gray-900 text-white">
+    <!-- Login Section -->
+    <div id="loginSection" class="h-screen flex items-center justify-center">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-6 text-center">Join Chatroom</h2>
+            <div class="space-y-4">
+                <input type="text" id="usernameInput" 
+                       class="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
+                       placeholder="Enter your username">
+                <button onclick="joinChat()" 
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <i data-lucide="log-in" class="w-5 h-5"></i>
+                    Join Chat
+                </button>
             </div>
-            <button onclick="joinChat()">
-                <i data-lucide="log-in"></i>
-                Join Chat
-            </button>
         </div>
     </div>
 
-    <div id="chatSection">
-        <div class="chat-header">
-            <div class="header-info">
-                <i data-lucide="messages-square"></i>
-                <h2>Chatroom</h2>
-                <div class="online-status">
-                    <i data-lucide="users"></i>
-                    <span id="onlineCount">0 online</span>
+    <!-- Chat Section -->
+    <div id="chatSection" class="hidden h-screen flex flex-col">
+        <!-- Chat Header -->
+        <div class="bg-gray-800 p-4 shadow-lg">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <i data-lucide="messages-square" class="w-6 h-6 text-indigo-500"></i>
+                    <h2 class="text-xl font-semibold">Chatroom</h2>
+                    <div class="flex items-center text-gray-400 text-sm">
+                        <i data-lucide="users" class="w-4 h-4 mr-2"></i>
+                        <span id="onlineCount">0 online</span>
+                    </div>
                 </div>
-            </div>
-            <div class="action-buttons">
-                <button onclick="toggleOnlineUsers()">
-                    <i data-lucide="users"></i>
-                </button>
-                <button onclick="copyRoomLink()">
-                    <i data-lucide="link"></i>
-                    Share Room
-                </button>
+                <div class="flex space-x-2">
+                    <button onclick="toggleOnlineUsers()" 
+                            class="p-2 hover:bg-gray-700 rounded-lg transition-colors">
+                        <i data-lucide="users" class="w-5 h-5"></i>
+                    </button>
+                    <button onclick="copyRoomLink()" 
+                            class="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-colors">
+                        <i data-lucide="link" class="w-4 h-4"></i>
+                        <span>Share Room</span>
+                    </button>
+                </div>
             </div>
         </div>
 
-        <div id="messages"></div>
-        <div id="typingIndicator" class="typing-indicator"></div>
+        <!-- Messages Area -->
+        <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+        <div id="typingIndicator" class="text-gray-400 text-sm italic px-4"></div>
 
-        <div class="chat-input-container">
-            <div class="input-wrapper">
-                <input type="text" id="messageInput" placeholder="Type your message...">
-                <button class="icon-button" onclick="toggleEmojiPicker()">
-                    <i data-lucide="smile"></i>
-                </button>
-                <div class="emoji-picker" id="emojiPicker">
-                    <span onclick="addEmoji('😊')">😊</span>
-                    <span onclick="addEmoji('😂')">😂</span>
-                    <span onclick="addEmoji('👍')">👍</span>
-                    <span onclick="addEmoji('❤️')">❤️</span>
-                    <span onclick="addEmoji('🎉')">🎉</span>
+        <!-- Chat Input -->
+        <div class="bg-gray-800 p-4">
+            <div class="flex items-center space-x-2">
+                <div class="relative flex-1">
+                    <input type="text" id="messageInput"
+                           class="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors pr-10"
+                           placeholder="Type your message...">
+                    <button onclick="toggleEmojiPicker()" 
+                            class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 p-1">
+                        <i data-lucide="smile" class="w-5 h-5"></i>
+                    </button>
+                    <!-- Emoji Picker -->
+                    <div id="emojiPicker" class="hidden absolute bottom-full right-0 mb-2 bg-gray-800 rounded-lg shadow-lg p-2 grid grid-cols-5 gap-1">
+                        <button onclick="addEmoji('😊')" class="p-2 hover:bg-gray-700 rounded">😊</button>
+                        <button onclick="addEmoji('😂')" class="p-2 hover:bg-gray-700 rounded">😂</button>
+                        <button onclick="addEmoji('👍')" class="p-2 hover:bg-gray-700 rounded">👍</button>
+                        <button onclick="addEmoji('❤️')" class="p-2 hover:bg-gray-700 rounded">❤️</button>
+                        <button onclick="addEmoji('🎉')" class="p-2 hover:bg-gray-700 rounded">🎉</button>
+                    </div>
                 </div>
+                <button onclick="sendMessage()" 
+                        class="bg-indigo-600 hover:bg-indigo-700 p-3 rounded-lg transition-colors flex items-center justify-center">
+                    <i data-lucide="send" class="w-5 h-5"></i>
+                </button>
             </div>
-            <button onclick="sendMessage()">
-                <i data-lucide="send"></i>
-            </button>
         </div>
     </div>
 
-    <div class="online-users" id="onlineUsers">
-        <h3>Online Users</h3>
-        <div id="usersList"></div>
+    <!-- Online Users Sidebar -->
+    <div id="onlineUsers" class="fixed right-0 top-0 bottom-0 w-64 bg-gray-800 transform translate-x-full transition-transform duration-300 ease-in-out p-4">
+        <h3 class="text-lg font-semibold mb-4">Online Users</h3>
+        <div id="usersList" class="space-y-2"></div>
     </div>
 
     <script src="script.js"></script>
